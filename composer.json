@@ -1,0 +1,49 @@
+{
+  "name":        "cubex/datastore",
+  "description": "Cubex Google Datastore components",
+  "version":     "1.0.0",
+  "keywords":    ["cubex", "datastore", "google"],
+  "homepage":    "http://cubex.io",
+  "authors": [
+    {
+      "name":     "Brooke Bryan",
+      "email":    "brooke@bajb.net",
+      "homepage": "http://www.bajb.net"
+    },
+    {
+      "name":     "Richard Gooding",
+      "email":    "richard.gooding@justdevelop.it"
+    }
+  ],
+  "repositories": [
+    {
+	  "type": "package",
+	  "package": {
+	    "name": "google/google-api-php-client",
+		"version": "0.6.2",
+		"dist": {
+		  "url": "http://google-api-php-client.googlecode.com/files/google-api-php-client-0.6.2.tar.gz",
+		  "type": "tar"
+		},
+		"autoload": {
+		  "classmap": ["src/"]
+		}
+	  }
+	},
+    {
+      "type": "git",
+      "url": "http://github.com/rgooding/Protobuf-PHP.git"
+    }
+  ],
+  "require": {
+    "php":            ">=5.4.0",
+	"google/google-api-php-client": "0.6.2",
+    "DrSlump/Protobuf-PHP": "dev-master"
+  },
+  "autoload": {
+	"files": [
+      "protobuf-gen/datastore_v1.php"
+	]
+  },
+  "minimum-stability": "dev"
+}
