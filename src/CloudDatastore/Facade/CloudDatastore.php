@@ -5,6 +5,8 @@
 
 namespace CloudDatastore\Facade;
 
+use Cubex\Facade\BaseFacade;
+
 class CloudDatastore extends BaseFacade
 {
   /**
