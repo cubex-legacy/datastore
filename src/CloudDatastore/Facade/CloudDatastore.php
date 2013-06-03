@@ -12,7 +12,7 @@ class CloudDatastore extends BaseFacade
   /**
    * @param string $name
    *
-   * @return \CloudDatastore\CloudDatastoreService
+   * @return \CloudDatastore\DatastoreService
    */
   public static function getAccessor($name = 'datastore')
   {

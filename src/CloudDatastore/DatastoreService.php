@@ -31,7 +31,7 @@ use CloudDatastore\GoogleAPI\GoogleServiceOptions;
 use Cubex\ServiceManager\IService;
 use Cubex\ServiceManager\ServiceConfigTrait;
 
-class CloudDatastoreService implements IService
+class DatastoreService implements IService
 {
   const DEFAULT_HOST        = 'https://www.googleapis.com';
   const DEFAULT_PK_PASSWORD = 'notasecret';
@@ -214,6 +214,20 @@ class CloudDatastoreService implements IService
   {
     $path = $ancestorPath ? $ancestorPath : [];
     $path[] = ['kind' => $kind, 'name' => $name];
+    return $this->getEntityByPath($path);
+  }
+
+  /**
+   * @param string $kind
+   * @param int    $id
+   * @param null   $ancestorPath
+   *
+   * @return Entity
+   */
+  public function getEntityById($kind, $id, $ancestorPath = null)
+  {
+    $path = $ancestorPath ? $ancestorPath : [];
+    $path[] = ['kind' => $kind, 'id' => $id];
     return $this->getEntityByPath($path);
   }
 
@@ -710,6 +724,16 @@ class CloudDatastoreService implements IService
       $resp = $this->_performBlindWrite($mutation);
       return $resp->getMutationResult()->getInsertAutoIdKeyList();
     }
+  }
+
+  /**
+   * Delete an entity by its path
+   *
+   * @param array $path
+   */
+  public function deleteByPath($path)
+  {
+    $this->delete($this->makeKeyFromPath($path));
   }
 
   /**
