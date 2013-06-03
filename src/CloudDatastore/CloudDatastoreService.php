@@ -8,16 +8,25 @@ namespace CloudDatastore;
 use api\services\datastore\BeginTransactionRequest;
 use api\services\datastore\BlindWriteRequest;
 use api\services\datastore\CommitRequest;
+use api\services\datastore\CompositeFilter;
 use api\services\datastore\Entity;
+use api\services\datastore\Filter;
 use api\services\datastore\Key;
+use api\services\datastore\KindExpression;
 use api\services\datastore\LookupRequest;
 use api\services\datastore\Mutation;
 use api\services\datastore\PartitionId;
+use api\services\datastore\Property;
+use api\services\datastore\PropertyExpression;
+use api\services\datastore\PropertyFilter;
+use api\services\datastore\PropertyOrder;
+use api\services\datastore\PropertyReference;
 use api\services\datastore\Query;
 use api\services\datastore\QueryResultBatch;
 use api\services\datastore\ReadOptions;
 use api\services\datastore\RollbackRequest;
 use api\services\datastore\RunQueryRequest;
+use api\services\datastore\Value;
 use CloudDatastore\GoogleAPI\GoogleServiceOptions;
 use Cubex\ServiceManager\IService;
 use Cubex\ServiceManager\ServiceConfigTrait;
@@ -273,6 +282,207 @@ class CloudDatastoreService implements IService
     }
 
     return $this->getEntities($keys);
+  }
+
+  /**
+   * Get entities by their ancestor path
+   *
+   * @param array $ancestorPath An array of path elements in
+   *                            ['kind', 'id', 'name'] format
+   *
+   * @return Entity[]
+   */
+  public function getEntitiesByAncestorPath($ancestorPath)
+  {
+    return $this->getEntitiesByAncestor($this->makeKeyFromPath($ancestorPath));
+  }
+
+  /**
+   * Get entities by their ancestor path
+   *
+   * @param Key    $ancestorKey
+   * @param int    $limit
+   * @param string $orderBy
+   * @param bool   $orderAscending
+   *
+   * @return Entity[]
+   */
+  public function getEntitiesByAncestor(
+    Key $ancestorKey, $limit = 0, $orderBy = "", $orderAscending = true
+  )
+  {
+    $propertyFilter = new PropertyFilter();
+    $propertyFilter->setProperty(
+      (new PropertyReference())->setName('__key__')
+    );
+    $propertyFilter->setOperator(PropertyFilter\Operator::HAS_ANCESTOR);
+    $propertyFilter->setValue(
+      (new Value())->setKeyValue($ancestorKey)
+    );
+
+    $query = new Query();
+    $query->addKind(
+      (new KindExpression())->setName('TxTestChild')
+    );
+    $query->setFilter(
+      (new Filter())->setPropertyFilter($propertyFilter)
+    );
+
+    if($limit > 0)
+    {
+      $query->setLimit($limit);
+    }
+
+    if($orderBy != "")
+    {
+      $query->setOrder(
+        (new PropertyOrder())
+          ->setProperty(
+            (new PropertyReference())->setName($orderBy)
+          )
+          ->setDirection(
+            $orderAscending ? PropertyOrder\Direction::ASCENDING :
+            PropertyOrder\Direction::DESCENDING
+          )
+      );
+    }
+
+    return $this->runQuery($query);
+  }
+
+
+  /**
+   * @param string|string[] $kinds        List of kinds to search for
+   * @param array           $properties   List of property => value to search for.
+   *                                      Only supports string properties.
+   * @param null|array      $ancestorPath The ancestor path to restrict the search to
+   * @param array           $orders       List of properties to order by as
+   *                                      property name => PropertyOrder\Direction
+   * @param int             $limit
+   * @param string|string[] $groupBy      Properties to group by
+   * @param string|string[] $requiredProperties The list of properties to return
+   *                                            in the query. If null then all
+   *                                            properties will be returned.
+   *                                            If an empty array then only keys.
+   *
+   * @return Query
+   */
+  public function buildQuery(
+    $kinds, array $properties, $ancestorPath = null, array $orders = [],
+    $limit = 0, $groupBy = "", $requiredProperties = ""
+  )
+  {
+    $query = new Query();
+
+    if($kinds)
+    {
+      if(! is_array($kinds))
+      {
+        $kinds = [$kinds];
+      }
+      foreach($kinds as $kind)
+      {
+        $query->addKind(
+          (new KindExpression())->setName($kind)
+        );
+      }
+    }
+
+    $propertyFilters = [];
+    if(!empty($properties))
+    {
+      foreach($properties as $property => $value)
+      {
+        $propertyFilters[] =
+          (new PropertyFilter())
+            ->setProperty((new PropertyReference())->setName($property))
+            ->setOperator(PropertyFilter\Operator::EQUAL)
+            ->setValue((new Value())->setStringValue($value));
+      }
+    }
+
+    if($ancestorPath)
+    {
+      $key = $this->makeKeyFromPath($ancestorPath);
+      $propertyFilters[] = (new PropertyFilter())
+        ->setProperty(
+          (new PropertyReference())->setName('__key__')
+        )
+        ->setOperator(PropertyFilter\Operator::HAS_ANCESTOR)
+        ->setValue(
+          (new Value())->setKeyValue($key)
+        );
+    }
+
+    if(count($propertyFilters) > 0)
+    {
+      $filter = new Filter();
+      if(count($propertyFilters) == 1)
+      {
+        $filter->setPropertyFilter($propertyFilters[0]);
+      }
+      else
+      {
+        $compFilter = new CompositeFilter();
+        foreach($propertyFilters as $propFilter)
+        {
+          $compFilter->addFilter(
+            (new Filter())->setPropertyFilter($propFilter)
+          );
+        }
+        $filter->setCompositeFilter($compFilter);
+      }
+      $query->setFilter($filter);
+    }
+
+    if(count($orders) > 0)
+    {
+      foreach($orders as $propName => $direction)
+      {
+        $query->addOrder(
+          (new PropertyOrder())
+            ->setProperty($propName)
+            ->setDirection($direction)
+        );
+      }
+    }
+
+    if($limit > 0)
+    {
+      $query->setLimit($limit);
+    }
+
+    if(!empty($groupBy))
+    {
+      if(! is_array($groupBy))
+      {
+        $groupBy = [$groupBy];
+      }
+
+      foreach($groupBy as $propName)
+      {
+        $query->addGroupBy(
+          (new PropertyReference())->setName($propName)
+        );
+      }
+    }
+
+    if(! empty($requiredProperties))
+    {
+      if(! is_array($requiredProperties))
+      {
+        $requiredProperties = [$requiredProperties];
+      }
+
+      foreach($requiredProperties as $propName)
+      {
+        $query->addProjection(
+          (new PropertyExpression())
+            ->setProperty((new PropertyReference())->setName($propName))
+        );
+      }
+    }
+    return $query;
   }
 
   /**
@@ -594,6 +804,124 @@ class CloudDatastoreService implements IService
     }
     return $key;
   }
+
+  /**
+   * @param array $properties An array of property name => value. Everything is
+   *                          created as a string property.
+   * @param string[] $indexProperties A list of properties to index
+   *
+   * @return Entity
+   */
+  public function buildEntity($properties, $indexProperties = [])
+  {
+    $entity = new Entity();
+    foreach($properties as $propName => $value)
+    {
+      $doIndex = in_array($propName, $indexProperties);
+      $property = new Property();
+      $property->setName($propName);
+      if(is_array($value))
+      {
+        $property->setMulti(true);
+        foreach($value as $thisValue)
+        {
+          $property->addValue(
+            (new Value())->setStringValue($thisValue)->setIndexed($doIndex)
+          );
+        }
+      }
+      else
+      {
+        $property->setMulti(false);
+        $property->setValue(
+          (new Value())->setStringValue($value)->setIndexed($doIndex)
+        );
+      }
+      $entity->addProperty($property);
+    }
+    return $entity;
+  }
+
+  /**
+   * Get all of the properties in an entity
+   *
+   * @param Entity $entity
+   *
+   * @return array
+   */
+  public function entityToArray(Entity $entity)
+  {
+    $entityData = [];
+    foreach($entity->getPropertyList() as $property)
+    {
+      $propName = $property->getName();
+      $propData = [];
+      $values = $property->getValueList();
+      foreach($values as $value)
+      {
+        $data = null;
+        $set = true;
+        if($value->hasStringValue())
+        {
+          $data = $value->getStringValue();
+        }
+        else if($value->hasIntegerValue())
+        {
+          $data = $value->getIntegerValue();
+        }
+        else if($value->hasBooleanValue())
+        {
+          $data = $value->getBooleanValue();
+        }
+        else if($value->hasBlobKeyValue())
+        {
+          $data = $value->getBlobKeyValue();
+        }
+        else if($value->hasBlobValue())
+        {
+          $data = $value->getBlobValue();
+        }
+        else if($value->hasDoubleValue())
+        {
+          $data = $value->getDoubleValue();
+        }
+        else if($value->hasEntityValue())
+        {
+          $data = $value->getEntityValue();
+        }
+        else if($value->hasKeyValue())
+        {
+          $data = $value->getKeyValue();
+        }
+        else if($value->hasTimestampMicrosecondsValue())
+        {
+          $data = $value->getTimestampMicrosecondsValue();
+        }
+        else
+        {
+          $set = false;
+        }
+        if($set)
+        {
+          $propData[] = $data;
+        }
+      }
+
+      if(count($propData) > 0)
+      {
+        if(count($propData) == 1)
+        {
+          $entityData[$propName] = $propData[0];
+        }
+        else
+        {
+          $entityData[$propName] = $propData;
+        }
+      }
+    }
+    return $entityData;
+  }
+
 
   protected function _getPartitionId()
   {
