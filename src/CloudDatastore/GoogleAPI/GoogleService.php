@@ -3,7 +3,7 @@
  * @author  Richard.Gooding
  */
 
-namespace Cubex\KvStore\CloudDatastore\GoogleAPI;
+namespace CloudDatastore\GoogleAPI;
 
 use DrSlump\Protobuf\Message;
 

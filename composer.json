@@ -25,8 +25,7 @@
       "protobuf-gen/datastore_v1.php"
 	],
 	"psr-0": {
-	  "CloudDatastore\\":"src/",
-	  "GoogleAPI\\":"src/"
+	  "CloudDatastore\\":"src/"
 	}
   },
   "minimum-stability": "dev"
