@@ -76,10 +76,9 @@ abstract class GoogleService
     }
     else
     {
-      // TODO: Throw an appropriate exception
-      echo "ERROR: HTTP request returned code " . $code . "\n";
-      var_dump($httpResponse);
-      die;
+      $msg = "ERROR: HTTP request returned code " . $code . "\n" .
+        $httpResponse->getResponseBody();
+      throw new GoogleServiceException($msg, $code);
     }
 
     $token = $client->getAccessToken();
