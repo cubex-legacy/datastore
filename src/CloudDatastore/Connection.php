@@ -19,7 +19,7 @@ use api\services\datastore\RollbackRequest;
 use api\services\datastore\RollbackResponse;
 use api\services\datastore\RunQueryRequest;
 use api\services\datastore\RunQueryResponse;
-use GoogleAPI\GoogleService;
+use CloudDatastore\GoogleAPI\GoogleService;
 
 class Connection extends GoogleService
 {

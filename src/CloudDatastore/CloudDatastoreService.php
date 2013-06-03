@@ -18,7 +18,7 @@ use api\services\datastore\QueryResultBatch;
 use api\services\datastore\ReadOptions;
 use api\services\datastore\RollbackRequest;
 use api\services\datastore\RunQueryRequest;
-use GoogleAPI\GoogleServiceOptions;
+use CloudDatastore\GoogleAPI\GoogleServiceOptions;
 use Cubex\ServiceManager\IService;
 use Cubex\ServiceManager\ServiceConfigTrait;
 
