@@ -23,7 +23,11 @@
   "autoload": {
 	"files": [
       "protobuf-gen/datastore_v1.php"
-	]
+	],
+	"psr-0": {
+	  "CloudDatastore\\":"src/",
+	  "GoogleAPI\\":"src/"
+	}
   },
   "minimum-stability": "dev"
 }
