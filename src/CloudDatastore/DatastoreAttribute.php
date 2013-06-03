@@ -22,6 +22,7 @@ class DatastoreAttribute extends Attribute
   protected $_type = self::TYPE_STRING;
   protected $_index = false;
   protected $_multi = false;
+  protected $_optional = false;
 
   /**
    * @param int $type One of the DatastoreAttribute::TYPE_* constants
@@ -75,5 +76,22 @@ class DatastoreAttribute extends Attribute
   public function multi()
   {
     return $this->_multi;
+  }
+
+  /**
+   * @param bool $optional True if this attribute should only be saved if it
+   *                       contains data
+   */
+  public function setOptional($optional)
+  {
+    $this->_optional = $optional;
+  }
+
+  /**
+   * @return bool
+   */
+  public function optional()
+  {
+    return $this->_optional;
   }
 }

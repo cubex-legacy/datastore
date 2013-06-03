@@ -141,8 +141,18 @@ class DatastoreMapper extends DataMapper
     $this->setAncestorPath($ancestorPath);
     $this->setId($id);
 
-    $this->_entity = $this->connection()->getEntity($this->key());
-    $this->hydrateFromEntity($this->_entity);
+    $entity = $this->connection()->getEntity($this->key());
+    if($entity)
+    {
+      $this->_entity = $entity;
+      $this->hydrateFromEntity($this->_entity);
+      $this->setExists(true);
+    }
+    else
+    {
+      $this->setExists(false);
+      $this->_entity = null;
+    }
   }
 
   public function delete()
@@ -169,6 +179,11 @@ class DatastoreMapper extends DataMapper
         $value = new Value();
         $value->setIndexed($attribute->index());
         $data = $attribute->rawData();
+
+        if(empty($data) && $attribute->optional())
+        {
+          continue;
+        }
 
         switch($attribute->type())
         {
