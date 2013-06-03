@@ -167,6 +167,7 @@ class DatastoreMapper extends DataMapper
       if($attribute instanceof DatastoreAttribute)
       {
         $value = new Value();
+        $value->setIndexed($attribute->index());
         $data = $attribute->rawData();
 
         switch($attribute->type())
