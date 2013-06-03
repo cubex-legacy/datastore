@@ -17,16 +17,16 @@
   ],
   "require": {
     "php":            ">=5.4.0",
-	"bitgandtter/google-api": "0.6.2",
+    "bitgandtter/google-api": "0.6.2",
     "rgooding/protobuf-php": "dev-master"
   },
   "autoload": {
-	"files": [
+    "files": [
       "protobuf-gen/datastore_v1.php"
-	],
-	"psr-0": {
-	  "CloudDatastore\\":"src/"
-	}
+    ],
+    "psr-0": {
+      "CloudDatastore\\":"src/"
+    }
   },
   "minimum-stability": "dev"
 }
