@@ -189,17 +189,15 @@ class DatastoreService implements IService
 
   public function rollback()
   {
-    if(! $this->inTransaction())
+    if($this->inTransaction())
     {
-      throw new \Exception('Not in a transaction');
+      $req = new RollbackRequest();
+      $req->setTransaction($this->_transactionId);
+      $this->_transactionId = "";
+      $this->_currentMutation = null;
+      $this->conn()->rollback($req);
+      // TODO: Do something with the response??
     }
-
-    $req = new RollbackRequest();
-    $req->setTransaction($this->_transactionId);
-    $this->_transactionId = "";
-    $this->_currentMutation = null;
-    $this->conn()->rollback($req);
-    // TODO: Do something with the response??
   }
 
   /**
