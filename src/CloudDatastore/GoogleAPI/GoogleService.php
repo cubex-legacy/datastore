@@ -61,7 +61,7 @@ abstract class GoogleService
       'Accept-Encoding' => 'gzip',
       'Accept' => 'text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2',
       'Content-Type' => 'application/x-protobuf',
-      'Content-Length' => \Google_Utils::getStrLen($postBody)
+      'Content-Length' => strlen($postBody)
     ];
 
     $httpRequest = new \Google_HttpRequest($url, 'POST', $headers, $postBody);
