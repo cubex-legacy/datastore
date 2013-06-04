@@ -54,7 +54,18 @@ class DatastoreService implements IService
    * @var Mutation
    */
   protected $_currentMutation = null;
-
+  /**
+   * @var bool
+   */
+  protected $_batchIsOpen = false;
+  /**
+   * @var int
+   */
+  protected $_batchAutoFlushSize = 0;
+  /**
+   * @var int
+   */
+  protected $_currentBatchSize = 0;
 
   public function connect()
   {
@@ -142,6 +153,11 @@ class DatastoreService implements IService
       );
     }
 
+    if($this->isBatchOpen())
+    {
+      throw new \Exception('Cannot begin a transaction while a batch is open');
+    }
+
     $req = new BeginTransactionRequest();
     $resp = $this->conn()->beginTransaction($req);
     $this->_transactionId = $resp->getTransaction();
@@ -198,6 +214,138 @@ class DatastoreService implements IService
       $this->_currentMutation = null;
       $this->conn()->rollback($req);
       // TODO: Do something with the response??
+    }
+  }
+
+  /**
+   * @return bool
+   */
+  public function isBatchOpen()
+  {
+    return $this->_batchIsOpen;
+  }
+
+  /**
+   * @param int $autoFlushSize Automatically flush the batch when this many
+   *                           operations have been added
+   *
+   * @throws \Exception
+   */
+  public function openBatch($autoFlushSize = 1000)
+  {
+    if($this->inTransaction())
+    {
+      throw new \Exception('Cannot open a batch while a transaction is open');
+    }
+
+    if(! $this->isBatchOpen())
+    {
+      $this->_batchIsOpen = true;
+      $this->_currentMutation = new Mutation();
+      $this->_currentBatchSize = 0;
+    }
+    $this->_batchAutoFlushSize = $autoFlushSize;
+  }
+
+  public function flushBatch()
+  {
+    if($this->isBatchOpen())
+    {
+      $response = $this->_performBlindWrite($this->_currentMutation);
+      $this->_currentMutation = new Mutation();
+      $this->_currentBatchSize = 0;
+
+      if($response->hasMutationResult())
+      {
+        $result = $response->getMutationResult();
+        if($result->hasInsertAutoIdKey())
+        {
+          return $result->getInsertAutoIdKeyList();
+        }
+      }
+    }
+    return null;
+  }
+
+  public function closeBatch()
+  {
+    $result = $this->flushBatch();
+    $this->cancelBatch();
+    return $result;
+  }
+
+  public function cancelBatch()
+  {
+    $this->_batchIsOpen = false;
+    $this->_currentMutation = null;
+  }
+
+  public function inBatchOrTransaction()
+  {
+    return $this->isBatchOpen() || $this->inTransaction();
+  }
+
+  /**
+   * Called each time something is added to the current mutation. If the auto
+   * flush size has been reached and a batch is open this will flush the batch.
+   */
+  protected function _addedToMutation()
+  {
+    if(($this->_batchAutoFlushSize > 0) && $this->isBatchOpen())
+    {
+      $this->_currentBatchSize++;
+      if($this->_currentBatchSize >= $this->_batchAutoFlushSize)
+      {
+        $this->flushBatch();
+      }
+    }
+  }
+
+  /**
+   * @param Key|Key[] $keys
+   */
+  protected function _addDelete($keys)
+  {
+    if(! is_array($keys))
+    {
+      $keys = [$keys];
+    }
+    foreach($keys as $key)
+    {
+      $this->_currentMutation->addDelete($key);
+      $this->_addedToMutation();
+    }
+  }
+
+  /**
+   * @param Entity|Entity[] $entities
+   */
+  protected function _addUpsert($entities)
+  {
+    if(! is_array($entities))
+    {
+      $entities = [$entities];
+    }
+    foreach($entities as $entity)
+    {
+      $this->_currentMutation->addUpsert($entity);
+      $this->_addedToMutation();
+    }
+  }
+
+  /**
+   * @param Entity|Entity[] $entities
+   */
+  protected function _addInsertAutoId($entities)
+  {
+    if(! is_array($entities))
+    {
+      $entities = [$entities];
+    }
+    foreach($entities as $entity)
+    {
+      $this->_currentMutation->addInsertAutoId($entity);
+      $this->_addedToMutation();
     }
   }
 
@@ -683,12 +831,9 @@ class DatastoreService implements IService
    */
   public function writeEntities($entities, $useTransaction = true)
   {
-    if($this->inTransaction())
+    if($this->inBatchOrTransaction())
     {
-      foreach($entities as $entity)
-      {
-        $this->_currentMutation->addUpsert($entity);
-      }
+      $this->_addUpsert($entities);
     }
     else if($useTransaction)
     {
@@ -696,10 +841,7 @@ class DatastoreService implements IService
       $this->beginTransaction();
       try
       {
-        foreach($entities as $entity)
-        {
-          $this->_currentMutation->addUpsert($entity);
-        }
+        $this->_addUpsert($entities);
         $committing = true;
         $this->commit();
       }
@@ -743,12 +885,9 @@ class DatastoreService implements IService
    */
   public function insertAutoIdMulti($entities, $useTransaction = true)
   {
-    if($this->inTransaction())
+    if($this->inBatchOrTransaction())
     {
-      foreach($entities as $entity)
-      {
-        $this->_currentMutation->addInsertAutoId($entity);
-      }
+      $this->_addInsertAutoId($entities);
       return null;
     }
     else if($useTransaction)
@@ -757,10 +896,7 @@ class DatastoreService implements IService
       $this->beginTransaction();
       try
       {
-        foreach($entities as $entity)
-        {
-          $this->_currentMutation->addInsertAutoId($entity);
-        }
+        $this->_addInsertAutoId($entities);
         $committing = true;
         return $this->commit();
       }
@@ -815,12 +951,9 @@ class DatastoreService implements IService
    */
   public function deleteMulti($keys, $useTransaction = true)
   {
-    if($this->inTransaction())
+    if($this->inBatchOrTransaction())
     {
-      foreach($keys as $key)
-      {
-        $this->_currentMutation->addDelete($key);
-      }
+      $this->_addDelete($keys);
     }
     else if($useTransaction)
     {
@@ -828,10 +961,7 @@ class DatastoreService implements IService
       $this->beginTransaction();
       try
       {
-        foreach($keys as $key)
-        {
-          $this->_currentMutation->addDelete($key);
-        }
+        $this->_addDelete($keys);
         $committing = true;
         $this->commit();
       }
