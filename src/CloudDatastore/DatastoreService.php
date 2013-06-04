@@ -76,6 +76,7 @@ class DatastoreService implements IService
       $this->config()->getStr("applicationName", "")
     );
     $options->setClientId($this->config()->getStr("clientId", ""));
+    $options->setAuthTokenFile($this->config()->getStr("authTokenFile", ""));
 
     $this->_connection = new Connection($options);
     $this->_connection->setDataset($dataSet);
@@ -375,7 +376,6 @@ class DatastoreService implements IService
    * @param string|string[] $requiredProperties The list of properties to return
    *                                            in the query. If null then all
    *                                            properties will be returned.
-   *                                            If an empty array then only keys.
    *
    * @return Query
    */
