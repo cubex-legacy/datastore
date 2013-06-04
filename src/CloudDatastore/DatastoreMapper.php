@@ -393,4 +393,25 @@ class DatastoreMapper extends DataMapper
     $path[] = $finalPath;
     return $path;
   }
+
+  /**
+   * @param $name
+   *
+   * @return DatastoreAttribute
+   * @throws \Exception
+   */
+  public function getAttribute($name)
+  {
+    $attr = parent::getAttribute($name);
+    if($attr instanceof DatastoreAttribute)
+    {
+      return $attr;
+    }
+    else
+    {
+      throw new \Exception(
+        'Attribute "' . $name . '" is not a DatastoreAttribute'
+      );
+    }
+  }
 }
