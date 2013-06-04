@@ -6,8 +6,12 @@
 namespace CloudDatastore;
 
 use api\services\datastore\Entity;
+use api\services\datastore\Filter;
 use api\services\datastore\Key;
+use api\services\datastore\KindExpression;
 use api\services\datastore\Property;
+use api\services\datastore\PropertyFilter;
+use api\services\datastore\Query;
 use api\services\datastore\Value;
 use CloudDatastore\Facade\CloudDatastore;
 use Cubex\Mapper\DataMapper;
@@ -57,6 +61,16 @@ class DatastoreMapper extends DataMapper
    * @var Key
    */
   protected $_key = null;
+  /**
+   * True if the data has been loaded
+   * @var bool
+   */
+  protected $_loaded;
+  /**
+   * A list of attributes that have been set
+   * @var string[]
+   */
+  protected $_setAttributes = [];
 
   public function connection()
   {
@@ -77,11 +91,7 @@ class DatastoreMapper extends DataMapper
       $ancestorPath = $this->_defaultAncestorPath;
     }
     $this->setAncestorPath($ancestorPath);
-
-    if($id !== null)
-    {
-      $this->load($id, $ancestorPath);
-    }
+    $this->_loaded = false;
   }
 
   public function kind()
@@ -110,6 +120,7 @@ class DatastoreMapper extends DataMapper
   protected function _pathChanged()
   {
     $this->_key = null;
+    $this->_loaded = false;
   }
 
   public function key()
@@ -134,18 +145,30 @@ class DatastoreMapper extends DataMapper
 
   public function load($id = null, $ancestorPath = null)
   {
-    if($ancestorPath === null)
+    if(! $this->_loaded)
     {
-      $ancestorPath = $this->_defaultAncestorPath;
+      $this->_load($id, $ancestorPath);
     }
-    $this->setAncestorPath($ancestorPath);
-    $this->setId($id);
+  }
+
+  protected function _load(
+    $id = null, $ancestorPath = null, $requiredAttributes = null
+  )
+  {
+    if($id !== null)
+    {
+      $this->setId($id);
+    }
+    if($ancestorPath !== null)
+    {
+      $this->setAncestorPath($ancestorPath);
+    }
 
     $entity = $this->connection()->getEntity($this->key());
     if($entity)
     {
       $this->_entity = $entity;
-      $this->hydrateFromEntity($this->_entity);
+      $this->hydrateFromEntity($this->_entity, $requiredAttributes);
       $this->setExists(true);
     }
     else
@@ -153,17 +176,115 @@ class DatastoreMapper extends DataMapper
       $this->setExists(false);
       $this->_entity = null;
     }
+    $this->_loaded = true;
   }
 
   public function delete()
   {
     $this->connection()->delete($this->key());
+    $this->_loaded = true;
+    $this->setExists(false);
+    $this->_entity = null;
+  }
+
+  /**
+   * Load only the specified attributes/properties
+   * @param string[] $attributes
+   */
+  public function loadSpecificAttributes(array $attributes)
+  {
+    // are all of the required attributes indexed?
+    $allIndexed = true;
+    foreach($attributes as $attrName)
+    {
+      $attr = $this->_attribute($attrName);
+      if((!($attr instanceof DatastoreAttribute)) || (!$attr->index()))
+      {
+        $allIndexed = false;
+        break;
+      }
+    }
+
+    if($allIndexed)
+    {
+      // All required properties are indexed so use a projection query
+      $query = $this->connection()->buildKeyQuery(
+        $this->kind(), [$this->key()], $attributes
+      );
+      $entities = $this->connection()->runQuery($query);
+      if($entities && (count($entities) > 0))
+      {
+        $this->hydrateFromEntity($entities[0]);
+      }
+    }
+    else
+    {
+      // Not all properties are indexed so we have to load the whole entity
+      $this->_load(null, null, $attributes);
+    }
+  }
+
+  /**
+   * Load any required attributes which have not been set manually
+   */
+  protected function _loadUnsetAttributes()
+  {
+    $missingAttributes = [];
+    foreach($this->getRawAttributes() as $attribute)
+    {
+      if($attribute instanceof DatastoreAttribute)
+      {
+        $attrName = $attribute->name();
+        if((!$attribute->optional()) &&
+          (!in_array($attrName, $this->_setAttributes))
+        )
+        {
+          $missingAttributes[] = $attrName;
+        }
+      }
+    }
+
+    if(count($missingAttributes) > 0)
+    {
+      $this->loadSpecificAttributes($missingAttributes);
+    }
+  }
+
+  public function setData(
+    $attribute, $value, $serialized = false, $bypassValidation = false
+  )
+  {
+    parent::setData($attribute, $value, $serialized, $bypassValidation);
+    $this->_setAttributes[] = $attribute;
+  }
+
+  public function getData($attribute)
+  {
+    if(! $this->_loaded)
+    {
+      $this->load();
+    }
+    return parent::getData($attribute);
+  }
+
+  public function exists()
+  {
+    if(! $this->_loaded)
+    {
+      $this->load();
+    }
+    return parent::exists();
   }
 
   public function saveChanges(
     $validate = false, $processAll = false, $failFirst = false
   )
   {
+    if(! $this->_loaded)
+    {
+      $this->_loadUnsetAttributes();
+    }
+
     $this->_saveValidation(
       $validate,
       $processAll,
@@ -235,9 +356,25 @@ class DatastoreMapper extends DataMapper
     $this->hydrateFromEntity($entity);
   }
 
-  public function hydrateFromEntity(Entity $entity)
+  public function hydrateFromEntity(Entity $entity, $requiredAttributes = null)
   {
-    $this->hydrate($this->connection()->entityToArray($entity));
+    $data = $this->connection()->entityToArray($entity);
+    $filteredData = [];
+    if($requiredAttributes !== null)
+    {
+      foreach($requiredAttributes as $attrName)
+      {
+        if(isset($data[$attrName]))
+        {
+          $filteredData[$attrName] = $data[$attrName];
+        }
+      }
+    }
+    else
+    {
+      $filteredData = $data;
+    }
+    $this->hydrate($filteredData);
   }
 
   protected function _getEntityPath()

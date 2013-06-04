@@ -500,6 +500,67 @@ class DatastoreService implements IService
   }
 
   /**
+   * Build a query to get one or more entities by key
+   *
+   * @param string   $kind The kind of entities
+   * @param Key[]    $keys The keys of the entities to get
+   * @param string[] $requiredProperties A list of required properties. If null
+   *                                     then load all properties.
+   *
+   * @return Query
+   * @throws \Exception
+   */
+  public function buildKeyQuery($kind, array $keys, $requiredProperties = null)
+  {
+    if(count($keys) == 0)
+    {
+      throw new \Exception('No keys specified');
+    }
+
+    $query = new Query();
+    $query->addKind((new KindExpression())->setName($kind));
+
+    $propertyFilters = [];
+    foreach($keys as $key)
+    {
+      $propertyFilters[] = (new PropertyFilter())
+        ->setProperty((new PropertyReference)->setName('__key__'))
+        ->setOperator(PropertyFilter\Operator::EQUAL)
+        ->setValue((new Value())->setKeyValue($key));
+    }
+
+    $filter = new Filter();
+    if(count($propertyFilters) == 1)
+    {
+      $filter->setPropertyFilter($propertyFilters[0]);
+    }
+    else
+    {
+      $compFilter = new CompositeFilter();
+      foreach($propertyFilters as $propFilter)
+      {
+        $compFilter->addFilter(
+          (new Filter())->setPropertyFilter($propFilter)
+        );
+      }
+      $filter->setCompositeFilter($compFilter);
+    }
+    $query->setFilter($filter);
+
+    if(! empty($requiredProperties))
+    {
+      foreach($requiredProperties as $propName)
+      {
+        $query->addProjection(
+          (new PropertyExpression())
+            ->setProperty((new PropertyReference())->setName($propName))
+        );
+      }
+    }
+    return $query;
+  }
+
+  /**
    * Run a query and return the results
    *
    * @param Query  $query
@@ -804,7 +865,11 @@ class DatastoreService implements IService
     return $this->conn()->blindWrite($req);
   }
 
-
+  /**
+   * @param array $path
+   *
+   * @return Key
+   */
   public function makeKeyFromPath($path)
   {
     $key = new Key();
@@ -827,6 +892,30 @@ class DatastoreService implements IService
       $key->setPartitionId($this->_getPartitionId());
     }
     return $key;
+  }
+
+  /**
+   * @param Key $key
+   *
+   * @return array
+   */
+  public function makePathFromKey(Key $key)
+  {
+    $path = [];
+    foreach($key->getPathElementList() as $pathElement)
+    {
+      $pathPart = ['kind' => $pathElement->getKind()];
+      if($pathElement->hasId())
+      {
+        $pathPart['id'] = $pathElement->getId();
+      }
+      else if($pathElement->hasName())
+      {
+        $pathPart['name'] = $pathElement->getName();
+      }
+      $path[] = $pathPart;
+    }
+    return $path;
   }
 
   /**
