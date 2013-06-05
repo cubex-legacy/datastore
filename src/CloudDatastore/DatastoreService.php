@@ -388,7 +388,6 @@ class DatastoreService implements IService
     return $this->getEntity($this->makeKeyFromPath($path));
   }
 
-
   public function getEntitiesByName($kind, $names, $ancestorPath = null)
   {
     $paths = [];
@@ -511,7 +510,6 @@ class DatastoreService implements IService
     return $this->runQuery($query);
   }
 
-
   /**
    * @param string|string[] $kinds        List of kinds to search for
    * @param array           $properties   List of property => value to search for.
@@ -520,6 +518,7 @@ class DatastoreService implements IService
    * @param array           $orders       List of properties to order by as
    *                                      property name => PropertyOrder\Direction
    * @param int             $limit
+   * @param int             $offset
    * @param string|string[] $groupBy      Properties to group by
    * @param string|string[] $requiredProperties The list of properties to return
    *                                            in the query. If null then all
@@ -529,7 +528,7 @@ class DatastoreService implements IService
    */
   public function buildQuery(
     $kinds, array $properties, $ancestorPath = null, array $orders = [],
-    $limit = 0, $groupBy = "", $requiredProperties = ""
+    $limit = 0, $offset = 0, $groupBy = "", $requiredProperties = ""
   )
   {
     $query = new Query();
@@ -601,7 +600,7 @@ class DatastoreService implements IService
       {
         $query->addOrder(
           (new PropertyOrder())
-            ->setProperty($propName)
+            ->setProperty((new PropertyReference())->setName($propName))
             ->setDirection($direction)
         );
       }
@@ -610,6 +609,10 @@ class DatastoreService implements IService
     if($limit > 0)
     {
       $query->setLimit($limit);
+    }
+    if($offset > 0)
+    {
+      $query->setOffset($offset);
     }
 
     if(!empty($groupBy))
@@ -1162,7 +1165,6 @@ class DatastoreService implements IService
     }
     return $entityData;
   }
-
 
   protected function _getPartitionId()
   {
