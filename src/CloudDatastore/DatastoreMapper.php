@@ -352,8 +352,34 @@ class DatastoreMapper extends DataMapper
 
   public function setEntity(Entity $entity)
   {
+    $key = $entity->getKey();
+    $pathElements = $key->getPathElementList();
+    $lastPath = end($pathElements);
+    if(! $lastPath instanceof Key\PathElement)
+    {
+      throw new \Exception('Last key entry not a PathElement');
+    }
+    if($lastPath->getKind() != $this->kind())
+    {
+      throw new \Exception(
+        'Incorrect entity kind "' . $lastPath->getKind() . '" passed to ' .
+        'setEntity. Expected "' . $this->kind() . '"'
+      );
+    }
+
     $this->_entity = $entity;
     $this->hydrateFromEntity($entity);
+
+    if($this->_idIsName)
+    {
+      $this->setId($lastPath->getName());
+    }
+    else
+    {
+      $this->setId($lastPath->getId());
+    }
+
+    return $this;
   }
 
   public function hydrateFromEntity(Entity $entity, $requiredAttributes = null)
