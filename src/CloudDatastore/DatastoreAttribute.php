@@ -26,10 +26,13 @@ class DatastoreAttribute extends Attribute
 
   /**
    * @param int $type One of the DatastoreAttribute::TYPE_* constants
+   *
+   * @return $this
    */
   public function setType($type)
   {
     $this->_type = $type;
+    return $this;
   }
 
   /**
@@ -42,10 +45,13 @@ class DatastoreAttribute extends Attribute
 
   /**
    * @param bool $index True if this attribute should be indexed
+   *
+   * @return $this
    */
   public function setIndex($index)
   {
     $this->_index = $index;
+    return $this;
   }
 
   /**
@@ -59,6 +65,8 @@ class DatastoreAttribute extends Attribute
   /**
    * @param bool $multi True if this attribute can take multiple values
    *
+   * @return $this
+   *
    * @throws \Exception
    */
   public function setMulti($multi)
@@ -68,6 +76,7 @@ class DatastoreAttribute extends Attribute
       throw new \Exception('Multiple values are not yet supported');
     }
     $this->_multi = $multi;
+    return $this;
   }
 
   /**
@@ -81,10 +90,13 @@ class DatastoreAttribute extends Attribute
   /**
    * @param bool $optional True if this attribute should only be saved if it
    *                       contains data
+   *
+   * @return $this
    */
   public function setOptional($optional)
   {
     $this->_optional = $optional;
+    return $this;
   }
 
   /**
