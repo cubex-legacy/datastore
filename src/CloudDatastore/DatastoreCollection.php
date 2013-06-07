@@ -5,6 +5,7 @@
 
 namespace CloudDatastore;
 
+use api\services\datastore\Entity;
 use api\services\datastore\PropertyOrder;
 use Cubex\Mapper\Collection;
 
@@ -17,6 +18,7 @@ class DatastoreCollection extends Collection
   protected $_offset = 0;
   protected $_orderBy = [];
   protected $_groupBy = "";
+  protected $_requiredProperties = "";
 
   /**
    * @var DatastoreService
@@ -104,6 +106,19 @@ class DatastoreCollection extends Collection
     return $this;
   }
 
+  /**
+   * @param string[] $requiredProperties
+   */
+  public function setRequiredProperties(array $requiredProperties)
+  {
+    $this->_requiredProperties = $requiredProperties;
+  }
+
+  public function clearRequiredProperties()
+  {
+    $this->_requiredProperties = "";
+  }
+
   protected function _buildQuery()
   {
     return $this->_service->buildQuery(
@@ -113,7 +128,8 @@ class DatastoreCollection extends Collection
       $this->_orderBy,
       $this->_limit,
       $this->_offset,
-      $this->_groupBy
+      $this->_groupBy,
+      $this->_requiredProperties
     );
   }
 
@@ -129,14 +145,45 @@ class DatastoreCollection extends Collection
   {
     $query = $this->_buildQuery();
     $entities = $this->_service->runQuery($query);
+    $this->addEntities($entities);
+    $this->setLoaded(true);
+    return $this;
+  }
 
+  public function addEntity(Entity $entity)
+  {
+    $this->addMapper((new $this->_mapperClass())->setEntity($entity));
+  }
+
+  /**
+   * @param Entity[] $entities
+   */
+  public function addEntities($entities)
+  {
     foreach($entities as $entity)
     {
-      $mapper = new $this->_mapperClass();
-      $mapper->setEntity($entity);
-      $this->addMapper($mapper);
+      $this->addEntity($entity);
     }
+  }
 
+  /**
+   * Load entities by their key paths. Note this will clear the collection
+   * and replace its contents with these entities.
+   *
+   * @param array[] $paths A list of paths where each path element contains
+   *                       'kind' and either 'id' or 'name'
+   *
+   * @return $this
+   */
+  public function loadByPaths($paths)
+  {
+    $this->clear();
+    $keys = [];
+    foreach($paths as $path)
+    {
+      $keys[] = $this->_service->makeKeyFromPath($path);
+    }
+    $this->addEntities($this->_service->getEntities($keys));
     $this->setLoaded(true);
     return $this;
   }
