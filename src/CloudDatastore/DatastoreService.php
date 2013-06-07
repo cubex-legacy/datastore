@@ -649,52 +649,30 @@ class DatastoreService implements IService
   }
 
   /**
-   * Build a query to get one or more entities by key
+   * Build a query to get a single entity by key
    *
    * @param string   $kind The kind of entities
-   * @param Key[]    $keys The keys of the entities to get
+   * @param Key      $key  The key of the entity to get
    * @param string[] $requiredProperties A list of required properties. If null
    *                                     then load all properties.
    *
    * @return Query
    * @throws \Exception
    */
-  public function buildKeyQuery($kind, array $keys, $requiredProperties = null)
+  public function buildKeyQuery($kind, Key $key, $requiredProperties = null)
   {
-    if(count($keys) == 0)
-    {
-      throw new \Exception('No keys specified');
-    }
-
     $query = new Query();
     $query->addKind((new KindExpression())->setName($kind));
 
-    $propertyFilters = [];
-    foreach($keys as $key)
-    {
-      $propertyFilters[] = (new PropertyFilter())
-        ->setProperty((new PropertyReference)->setName('__key__'))
-        ->setOperator(PropertyFilter\Operator::EQUAL)
-        ->setValue((new Value())->setKeyValue($key));
-    }
-
-    $filter = new Filter();
-    if(count($propertyFilters) == 1)
-    {
-      $filter->setPropertyFilter($propertyFilters[0]);
-    }
-    else
-    {
-      $compFilter = new CompositeFilter();
-      foreach($propertyFilters as $propFilter)
-      {
-        $compFilter->addFilter(
-          (new Filter())->setPropertyFilter($propFilter)
-        );
-      }
-      $filter->setCompositeFilter($compFilter);
-    }
-    $query->setFilter($filter);
+    $query->setFilter(
+      (new Filter())
+        ->setPropertyFilter(
+          (new PropertyFilter())
+            ->setProperty((new PropertyReference)->setName('__key__'))
+          ->setOperator(PropertyFilter\Operator::EQUAL)
+          ->setValue((new Value())->setKeyValue($key))
+        )
+    );
 
     if(! empty($requiredProperties))
     {

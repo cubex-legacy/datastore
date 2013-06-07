@@ -218,7 +218,7 @@ class DatastoreMapper extends DataMapper
     {
       // All required properties are indexed so use a projection query
       $query = $this->connection()->buildKeyQuery(
-        $this->kind(), [$this->key()], $attributes
+        $this->kind(), $this->key(), $attributes
       );
       $entities = $this->connection()->runQuery($query);
       if($entities && (count($entities) > 0))
