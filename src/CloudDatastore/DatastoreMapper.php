@@ -72,6 +72,15 @@ class DatastoreMapper extends DataMapper
    */
   protected $_setAttributes = [];
 
+  public static function conn()
+  {
+    $a = new static;
+    /**
+     * @var $a self
+     */
+    return $a->connection();
+  }
+
   public function connection()
   {
     return CloudDatastore::getAccessor($this->_datastoreConnection);
@@ -352,14 +361,23 @@ class DatastoreMapper extends DataMapper
 
   public function setEntity(Entity $entity)
   {
-    $key = $entity->getKey();
-    $pathElements = $key->getPathElementList();
-    $lastPath = end($pathElements);
-    if(! $lastPath instanceof Key\PathElement)
+    $this->setKey($entity->getKey());
+
+    $this->_entity = $entity;
+    $this->hydrateFromEntity($entity);
+
+    return $this;
+  }
+
+  public function setKey(Key $key)
+  {
+    $path = $this->conn()->makePathFromKey($key);
+    if(count($path) < 1)
     {
-      throw new \Exception('Last key entry not a PathElement');
+      throw new \Exception('Key has no path elements');
     }
-    if($lastPath->getKind() != $this->kind())
+    $lastPath = array_pop($path);
+    if($lastPath['kind'] != $this->kind())
     {
       throw new \Exception(
         'Incorrect entity kind "' . $lastPath->getKind() . '" passed to ' .
@@ -367,19 +385,16 @@ class DatastoreMapper extends DataMapper
       );
     }
 
-    $this->_entity = $entity;
-    $this->hydrateFromEntity($entity);
+    $this->setAncestorPath($path);
 
     if($this->_idIsName)
     {
-      $this->setId($lastPath->getName());
+      $this->setId($lastPath['name']);
     }
     else
     {
-      $this->setId($lastPath->getId());
+      $this->setId($lastPath['id']);
     }
-
-    return $this;
   }
 
   public function hydrateFromEntity(Entity $entity, $requiredAttributes = null)
