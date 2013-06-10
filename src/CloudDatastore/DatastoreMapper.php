@@ -72,6 +72,13 @@ class DatastoreMapper extends DataMapper
    */
   protected $_setAttributes = [];
 
+  /**
+   * If this is false then optional attributes that are set to their default
+   * value will not be saved.
+   * @var bool
+   */
+  protected $_saveOptionalDefaults = false;
+
   public static function conn()
   {
     $a = new static;
@@ -310,7 +317,15 @@ class DatastoreMapper extends DataMapper
         $value->setIndexed($attribute->index());
         $data = $attribute->rawData();
 
-        if(empty($data) && $attribute->optional())
+        if($attribute->optional() &&
+          (
+            empty($data) ||
+            (
+              (! $this->_saveOptionalDefaults) &&
+              ($data == $attribute->defaultValue())
+            )
+          )
+        )
         {
           continue;
         }
