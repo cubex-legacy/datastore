@@ -380,7 +380,8 @@ class DatastoreMapper extends DataMapper
 
     $this->_entity = $entity;
     $this->hydrateFromEntity($entity);
-
+    $this->setExists(true);
+    $this->_loaded = true;
     return $this;
   }
 
