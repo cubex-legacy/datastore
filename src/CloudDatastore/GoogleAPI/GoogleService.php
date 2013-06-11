@@ -14,6 +14,18 @@ abstract class GoogleService
    */
   protected $_options;
 
+  /**
+   * How many times to retry a request that returns a 503 error
+   * @var int
+   */
+  protected $_defaultRetryCount = 3;
+  /**
+   * How long in seconds to sleep for each retry. This is multiplied by the
+   * number of retries so the delay gets longer on each attempt.
+   * @var int
+   */
+  protected $_retrySleepFactor = 1;
+
   public function __construct(GoogleServiceOptions $options = null)
   {
     $this->_options = $options;
@@ -45,13 +57,20 @@ abstract class GoogleService
    * @param string  $methodName
    * @param Message $message
    * @param Message $response
+   * @param int     $retryCount How many times to attempt the call.
+   *                            -1 = use default.
    *
    * @return Message
    */
   protected function _callMethod(
-    $methodName, Message $message, Message $response
+    $methodName, Message $message, Message $response, $retryCount = -1
   )
   {
+    if($retryCount == -1)
+    {
+      $retryCount = $this->_defaultRetryCount;
+    }
+
     $url = $this->_getUrlForMethod($methodName);
     $client = $this->_getClient();
 
@@ -64,21 +83,32 @@ abstract class GoogleService
       'Content-Length' => strlen($postBody)
     ];
 
-    $httpRequest = new \Google_HttpRequest($url, 'POST', $headers, $postBody);
-    \Google_Client::$auth->sign($httpRequest);
-
-    $httpResponse = \Google_Client::$io->makeRequest($httpRequest);
-
-    $code = $httpResponse->getResponseHttpCode();
-    if($code == 200)
+    $finished = false;
+    $numTries = 1;
+    while(! $finished)
     {
-      $response->parse($httpResponse->getResponseBody());
-    }
-    else
-    {
-      $msg = "ERROR: HTTP request returned code " . $code . "\n" .
-        $httpResponse->getResponseBody();
-      throw new GoogleServiceException($msg, $code);
+      $httpRequest = new \Google_HttpRequest($url, 'POST', $headers, $postBody);
+      \Google_Client::$auth->sign($httpRequest);
+
+      $httpResponse = \Google_Client::$io->makeRequest($httpRequest);
+
+      $code = $httpResponse->getResponseHttpCode();
+      if($code == 200)
+      {
+        $response->parse($httpResponse->getResponseBody());
+        $finished = true;
+      }
+      else if(($code == 503) && ($numTries < $retryCount))
+      {
+        sleep($numTries * $this->_retrySleepFactor);
+        $numTries++;
+      }
+      else
+      {
+        $msg = "ERROR: HTTP request returned code " . $code . "\n" .
+          $httpResponse->getResponseBody();
+        throw new GoogleServiceException($msg, $code);
+      }
     }
 
     $token = $client->getAccessToken();
