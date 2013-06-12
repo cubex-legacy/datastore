@@ -24,7 +24,7 @@ abstract class GoogleService
    * number of retries so the delay gets longer on each attempt.
    * @var int
    */
-  protected $_retrySleepFactor = 1;
+  protected $_retrySleepFactor = 2;
 
   public function __construct(GoogleServiceOptions $options = null)
   {
@@ -61,6 +61,7 @@ abstract class GoogleService
    *                            -1 = use default.
    *
    * @return Message
+   * @throws GoogleServiceException
    */
   protected function _callMethod(
     $methodName, Message $message, Message $response, $retryCount = -1
