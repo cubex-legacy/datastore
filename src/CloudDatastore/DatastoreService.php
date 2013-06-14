@@ -88,6 +88,9 @@ class DatastoreService implements IService
     );
     $options->setClientId($this->config()->getStr("clientId", ""));
     $options->setAuthTokenFile($this->config()->getStr("authTokenFile", ""));
+    $options->setAuthTokenInMemcache(
+      $this->config()->getBool('authTokenInMemcache', false)
+    );
 
     $this->_connection = new Connection($options);
     $this->_connection->setDataset($dataSet);

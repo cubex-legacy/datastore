@@ -5,6 +5,7 @@
 
 namespace CloudDatastore\GoogleAPI;
 
+use Cubex\Facade\Cache;
 use DrSlump\Protobuf\Message;
 
 abstract class GoogleService
@@ -162,12 +163,36 @@ abstract class GoogleService
 
   protected function _getAuthToken()
   {
-    return file_exists($this->_options->authTokenFile) ?
-    file_get_contents($this->_options->authTokenFile) : false;
+    if($this->_options->authTokenInMemcache)
+    {
+      return Cache::get($this->_authTokenCacheKey(), false);
+    }
+    else if($this->_options->authTokenFile != "")
+    {
+      return file_exists($this->_options->authTokenFile) ?
+        file_get_contents($this->_options->authTokenFile) : false;
+    }
+    else
+    {
+      return false;
+    }
   }
 
   protected function _saveAuthToken($token)
   {
-    file_put_contents($this->_options->authTokenFile, $token);
+    if($this->_options->authTokenInMemcache)
+    {
+      Cache::set($this->_authTokenCacheKey(), $token, 3600);
+    }
+    else if($this->_options->authTokenFile != "")
+    {
+      file_put_contents($this->_options->authTokenFile, $token);
+    }
+  }
+
+  protected function _authTokenCacheKey()
+  {
+    return 'GoogleService:authToken:' .
+      $this->_options->getServiceAccountName();
   }
 }

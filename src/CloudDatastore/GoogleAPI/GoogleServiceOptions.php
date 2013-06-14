@@ -13,6 +13,7 @@ class GoogleServiceOptions
   public $serviceAccountName = '';
   public $privateKeyFile;
   public $privateKeyPassword = 'notasecret';
+  public $authTokenInMemcache = false;
   public $authTokenFile;
 
   public function getHost()
@@ -85,6 +86,17 @@ class GoogleServiceOptions
   public function setAuthTokenFile($authTokenFile)
   {
     $this->authTokenFile = $authTokenFile;
+    return $this;
+  }
+
+  public function getAuthTokenInMemcache()
+  {
+    return $this->authTokenInMemcache;
+  }
+
+  public function setAuthTokenInMemcache($authTokenInMemcache)
+  {
+    $this->authTokenInMemcache = $authTokenInMemcache;
     return $this;
   }
 }
