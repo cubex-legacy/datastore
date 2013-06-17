@@ -15,6 +15,7 @@ class GoogleServiceOptions
   public $privateKeyPassword = 'notasecret';
   public $authTokenInMemcache = false;
   public $authTokenFile;
+  public $allowIPv6 = false;
 
   public function getHost()
   {
@@ -97,6 +98,17 @@ class GoogleServiceOptions
   public function setAuthTokenInMemcache($authTokenInMemcache)
   {
     $this->authTokenInMemcache = $authTokenInMemcache;
+    return $this;
+  }
+
+  public function getAllowIPv6()
+  {
+    return $this->allowIPv6;
+  }
+
+  public function setAllowIPv6($allowIPv6)
+  {
+    $this->allowIPv6 = $allowIPv6;
     return $this;
   }
 }

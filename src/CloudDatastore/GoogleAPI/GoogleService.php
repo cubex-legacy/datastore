@@ -147,6 +147,11 @@ abstract class GoogleService
       $client->setClientId($this->_options->clientId);
     }
 
+    if(! $this->_options->getAllowIPv6())
+    {
+      $client->getIo()->setOptions([CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]);
+    }
+
     return $client;
   }
 
