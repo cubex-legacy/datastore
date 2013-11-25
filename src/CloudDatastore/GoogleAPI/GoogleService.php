@@ -53,7 +53,6 @@ abstract class GoogleService
     ltrim($this->_getBaseUrl(), '/');
   }
 
-
   /**
    * @param string  $methodName
    * @param Message $message

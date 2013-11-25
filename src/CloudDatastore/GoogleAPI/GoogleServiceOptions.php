@@ -39,7 +39,6 @@ class GoogleServiceOptions
     return $this;
   }
 
-
   public function getClientId()
   {
     return $this->clientId;
