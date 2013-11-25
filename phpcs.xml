@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<ruleset name="Cubex Code Standard">
+  <description>Code standards</description>
+  <!-- Unit Tests -->
+  <exclude-pattern>*/Tests/*</exclude-pattern>
+  <rule ref="CubexCodeStandards"/>
+</ruleset>
